@@ -1,9 +1,28 @@
-use std::cmp::{max, Ordering};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
-use std::mem;
 use std::time::Instant;
+
+struct AnagramGroup<'a> {
+    count: usize,
+    words: Vec<&'a str>
+}
+
+impl<'a> AnagramGroup<'a> {
+    pub fn new(word: &'a str) -> Self {
+        AnagramGroup {
+            count: 1,
+            words: vec![word]
+        }
+    }
+
+    pub fn push(&mut self, word: &'a str) {
+        if !self.words.contains(&word) {
+            self.words.push(word);
+            self.count += 1;
+        }
+    }
+}
 
 fn qsort<T: Copy, C: Copy + Fn(T, T) -> bool>(vec: &mut Vec<T>, begin: usize, end: usize, cmp: C) {
     if end - begin <= 1 {
@@ -31,15 +50,46 @@ fn partition<T: Copy, C: Fn(T, T) -> bool>(vec: &mut Vec<T>, begin: usize, end: 
             return j;
         }
 
-        let t = vec[i];
-        vec[i] = vec[j];
-        vec[j] = t;
+        vec.swap(i, j);
         i += 1;
         j -= 1;
     }
 }
 
-fn into_words(str: &String) -> impl Iterator<Item = &str>{
+fn qsort2(vec: &mut Vec<(String, AnagramGroup)>, begin: usize, end: usize) {
+    if end - begin <= 1 {
+        return;
+    }
+    let p = partition2(vec, begin, end);
+
+    qsort2(vec, begin, p);
+    qsort2(vec, p + 1, end);
+}
+
+fn partition2(vec: &mut Vec<(String, AnagramGroup)>, begin: usize, end: usize) -> usize {
+    let mid_elem = vec[(end + begin) / 2].1.count;
+    let mut i = begin;
+    let mut j = end;
+    loop {
+        while mid_elem < vec[i].1.count {
+            i += 1;
+        }
+
+        while vec[j].1.count < mid_elem {
+            j -= 1;
+        }
+
+        if i >= j {
+            return j;
+        }
+
+        vec.swap(i, j);
+        i += 1;
+        j -= 1;
+    }
+}
+
+fn to_words(str: &String) -> impl Iterator<Item = &str>{
     str
         .split(|x: char| x.is_whitespace() || x.is_ascii_punctuation() || x == '–')
         .filter(|x| !x.is_empty())
@@ -61,9 +111,9 @@ fn sort_hashmap(map: HashMap<&str, usize>) -> Vec<(&str, usize)> {
 
 fn as_anagram(str: &str) -> String {
     let mut chars = str.chars().collect::<Vec<char>>();
-    let len = chars.len();
-    qsort(&mut chars, 0, len - 1, |x, y| x < y);
-    String::from_iter(chars.into_iter())
+    let chars = chars.as_mut_slice();
+    chars.sort();
+    String::from_iter(chars.into_iter().map(|x| *x))
 }
 
 fn main() {
@@ -79,12 +129,14 @@ fn main() {
 
     let text_unchanged = text.clone();
     let text = text.to_lowercase();
-    let w = into_words(&text).collect::<Vec<&str>>();
+
+    let w = to_words(&text).collect::<Vec<&str>>();
 
     println!("Text contains {} words", w.len());
 
-    let begin = Instant::now();
     let mut words = HashMap::with_capacity(w.len());
+    let begin = Instant::now();
+
     for word in w {
         words.insert(word, *words.get(word).unwrap_or(&0) + 1);
     }
@@ -98,10 +150,10 @@ fn main() {
 
     println!("Found in {}ms", (end - begin).as_millis());
 
-    let begin = Instant::now();
-    let w = into_words(&text_unchanged).collect::<Vec<&str>>();
+    let w = to_words(&text_unchanged).collect::<Vec<&str>>();
     let mut words = HashMap::with_capacity(w.len());
 
+    let begin = Instant::now();
     for word in w {
         insert_if_name(&mut words, word);
     }
@@ -109,11 +161,36 @@ fn main() {
     let w = sort_hashmap(words);
 
     let end = Instant::now();
-    for (word, count) in w.into_iter().take(20) {
+    for (word, count) in w.iter().take(20) {
         println!("{} {}", word, count);
     }
 
     println!("Found in {}ms", (end - begin).as_millis());
 
+    let w = to_words(&text_unchanged)
+        .filter(|x|
+            !x.chars()
+                .all(|x|
+                    x.is_digit(10)
+                )
+        ).collect::<Vec<&str>>();
+    let mut words: HashMap<String, AnagramGroup> = HashMap::with_capacity(w.len());
+    let begin = Instant::now();
+    for word in w {
+        let anagram = as_anagram(word);
+        match words.get_mut(&anagram) {
+            Some(group) => group.push(word),
+            None => { words.insert(anagram, AnagramGroup::new(word)); },
+        }
+    }
 
+    let mut w = words.into_iter().collect::<Vec<(String, AnagramGroup)>>();
+    let len = w.len();
+    qsort2(&mut w, 0, len - 1);
+    let end = Instant::now();
+
+    for (word, AnagramGroup {count, words}) in w.iter().take(10) {
+        println!("{} {} {:?}", word, count, words);
+    }
+    println!("Found in {}ms", (end - begin).as_millis());
 }
