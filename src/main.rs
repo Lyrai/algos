@@ -41,7 +41,7 @@ pub struct GameByGenre {
 }
 
 fn main() {
-    /*let mut file = File::open(
+    let mut file = File::open(
         std::env::args()
             .skip(1)
             .next()
@@ -58,7 +58,7 @@ fn main() {
 
     task2(&text_unchanged);
 
-    task3(&text_unchanged);*/
+    task3(&text_unchanged);
 
     let mut file = File::open("Video_Games.csv").unwrap();
     let mut buf = String::new();
