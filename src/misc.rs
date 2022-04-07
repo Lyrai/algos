@@ -22,8 +22,13 @@ pub fn as_anagram(str: &str) -> String {
 
 pub fn parse(text: &String) -> Vec<GameInfo> {
     let mut result = vec![];
-    let lines = text.split('\n').collect::<Vec<&str>>();
+    let lines = text.split(';').collect::<Vec<&str>>();
+    result.reserve(lines.len());
     for line in lines.iter().skip(1) {
+        if line.eq(&"\r\n") {
+            continue;
+        }
+
         let parameters = line.split(',').collect::<Vec<&str>>();
         let item = GameInfo {
             name: parameters[0].to_string(),

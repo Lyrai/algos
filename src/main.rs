@@ -10,23 +10,34 @@ use crate::algos::*;
 use crate::misc::*;
 use crate::anagram::AnagramGroup;
 
+#[derive(Clone)]
 pub struct GameInfo {
     name: String,
     platform: String,
     release_year: i32,
     genre: String,
     publisher: String,
-    na_sales: f32,
-    eu_sales: f32,
-    jp_sales: f32,
-    other_sales: f32,
-    global_sales: f32,
-    critic_score: Option<f32>,
-    critic_count: Option<f32>,
-    user_score: Option<f32>,
-    user_count: Option<f32>,
+    na_sales: f64,
+    eu_sales: f64,
+    jp_sales: f64,
+    other_sales: f64,
+    global_sales: f64,
+    critic_score: Option<f64>,
+    critic_count: Option<f64>,
+    user_score: Option<f64>,
+    user_count: Option<f64>,
     developer: Option<String>,
     rating: Option<String>
+}
+
+pub struct PublisherGamesByGenre {
+    publisher: String,
+    games: HashMap<String, GameInfo>
+}
+
+pub struct GameByGenre {
+    genre: String,
+    games: Vec<GameInfo>
 }
 
 fn main() {
@@ -53,6 +64,8 @@ fn main() {
     let mut buf = String::new();
     file.read_to_string(&mut buf);
     let games = parse(&buf);
+
+    task4(games.to_vec());
 }
 
 fn task1(text: &String) {
@@ -120,4 +133,39 @@ fn task3(text: &String) {
         println!("{} {} {:?}", word, count, words);
     }
     println!("Found in {}ms", (end - begin).as_millis());
+}
+
+fn task4(games: Vec<GameInfo>) {
+    let begin = Instant::now();
+    let mut publishers: HashMap<String, HashMap<String, Vec<GameInfo>>> = HashMap::new();
+    for game in games {
+        match publishers.get_mut(&game.publisher) {
+            Some(genre) => {
+                match genre.get_mut(&game.genre) {
+                    Some(games) => games.push(game),
+                    None => { genre.insert(game.genre.clone(), vec![game]); }
+                }
+            }
+            None => {
+                let mut map = HashMap::new();
+                let publisher = game.publisher.clone();
+                map.insert(game.genre.clone(), vec![game]);
+                publishers.insert(publisher, map);
+            }
+        }
+    }
+
+    for (publisher, genres) in publishers {
+        println!("Publisher {}:", publisher);
+        for (genre, games) in genres {
+            let mut sum = 0f64;
+            for game in games {
+                sum += game.global_sales;
+            }
+
+            println!("  {}: {} total sales", genre, sum);
+        }
+    }
+    let end = Instant::now();
+    println!("Found in {}ms\n", (end - begin).as_millis());
 }
