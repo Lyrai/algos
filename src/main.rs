@@ -2,6 +2,8 @@ mod anagram;
 mod algos;
 mod misc;
 
+use std::borrow::Borrow;
+use std::cmp::min;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
@@ -30,18 +32,8 @@ pub struct GameInfo {
     rating: Option<String>
 }
 
-pub struct PublisherGamesByGenre {
-    publisher: String,
-    games: HashMap<String, GameInfo>
-}
-
-pub struct GameByGenre {
-    genre: String,
-    games: Vec<GameInfo>
-}
-
 fn main() {
-    let mut file = File::open(
+    /*let mut file = File::open(
         std::env::args()
             .skip(1)
             .next()
@@ -58,7 +50,7 @@ fn main() {
 
     task2(&text_unchanged);
 
-    task3(&text_unchanged);
+    task3(&text_unchanged);*/
 
     let mut file = File::open("Video_Games.csv").unwrap();
     let mut buf = String::new();
@@ -66,6 +58,10 @@ fn main() {
     let games = parse(&buf);
 
     task4(games.to_vec());
+
+    task5(games.to_vec());
+
+    task6(games.to_vec());
 }
 
 fn task1(text: &String) {
@@ -79,7 +75,7 @@ fn task1(text: &String) {
         words.insert(word, *words.get(word).unwrap_or(&0) + 1);
     }
 
-    let w = sort_hashmap(words);
+    let w = sort_hashmap(&words);
 
     let end = Instant::now();
     for (word, count) in w.into_iter().take(40) {
@@ -98,7 +94,7 @@ fn task2(text: &String) {
         insert_if_name(&mut words, word);
     }
 
-    let w = sort_hashmap(words);
+    let w = sort_hashmap(&words);
 
     let end = Instant::now();
     for (word, count) in w.iter().take(20) {
@@ -166,6 +162,80 @@ fn task4(games: Vec<GameInfo>) {
             println!("  {}: {} total sales", genre, sum);
         }
     }
+    let end = Instant::now();
+    println!("Found in {}ms\n", (end - begin).as_millis());
+}
+
+fn task5(games: Vec<GameInfo>) {
+    let mut years: HashMap<i32, HashMap<String, f64>> = HashMap::new();
+
+    let begin = Instant::now();
+    for game in games {
+        match years.get_mut(&game.release_year) {
+            Some(genre) => {
+                match genre.get_mut(&game.genre) {
+                    Some(revenue) => *revenue += game.global_sales,
+                    None => { genre.insert(game.genre.clone(), game.global_sales); }
+                }
+            }
+            None => {
+                let mut map = HashMap::new();
+                map.insert(game.genre.clone(), game.global_sales);
+                years.insert(game.release_year, map);
+            }
+        }
+    }
+
+    for (year, genres) in years {
+        let mut max = 0f64;
+        let mut res_genre = &String::new();
+        for (genre, sum) in &genres {
+            if *sum > max {
+                max = *sum;
+                res_genre = genre;
+            }
+        }
+
+        println!("{}: {} in {}", year, max, res_genre);
+    }
+
+    let end = Instant::now();
+    println!("Found in {}ms\n", (end - begin).as_millis());
+}
+
+fn task6(games: Vec<GameInfo>) {
+    let mut publishers: HashMap<String, HashMap<String, f64>> = HashMap::new();
+
+    let begin = Instant::now();
+    for game in games {
+        match publishers.get_mut(&game.publisher) {
+            Some(genre) => {
+                if let Some(developer) = &game.developer {
+                    match genre.get_mut(developer.as_str()) {
+                        Some(revenue) => *revenue += game.global_sales,
+                        None => { genre.insert(developer.clone(), game.global_sales); }
+                    }
+                }
+            }
+            None => {
+                if let Some(developer) = &game.developer {
+                    let mut map = HashMap::new();
+                    let publisher = game.publisher;
+                    map.insert(developer.clone(), game.global_sales);
+                    publishers.insert(publisher, map);
+                }
+            }
+        }
+    }
+
+    for (publisher, developers) in publishers {
+        let developers = sort_hashmap(&developers);
+        println!("{}: ", publisher);
+        for i in 0..min(developers.len(), 5) {
+            println!("  {} from {}", developers[i].1, developers[i].0);
+        }
+    }
+
     let end = Instant::now();
     println!("Found in {}ms\n", (end - begin).as_millis());
 }

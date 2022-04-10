@@ -1,5 +1,6 @@
 use crate::anagram::AnagramGroup;
 use std::collections::HashMap;
+use std::ops::Deref;
 
 pub fn qsort<T: Copy, C: Copy + Fn(T, T) -> bool>(vec: &mut Vec<T>, begin: usize, end: usize, cmp: C) {
     if end - begin <= 1 {
@@ -66,10 +67,13 @@ fn partition2(vec: &mut Vec<(String, AnagramGroup)>, begin: usize, end: usize) -
     }
 }
 
-pub fn sort_hashmap(map: HashMap<&str, usize>) -> Vec<(&str, usize)> {
-    let mut w = map.into_iter().collect::<Vec<(&str, usize)>>();
+pub fn sort_hashmap<K, V: PartialOrd>(map: &HashMap<K, V>) -> Vec<(&K, &V)> {
+    let mut w = map.iter().collect::<Vec<(&K, &V)>>();
     let len = w.len();
     qsort(&mut w, 0, len - 1, |x, y| x.1 < y.1);
 
     w
+        .into_iter()
+        .map(|(x, y)| (x, y))
+        .collect()
 }
